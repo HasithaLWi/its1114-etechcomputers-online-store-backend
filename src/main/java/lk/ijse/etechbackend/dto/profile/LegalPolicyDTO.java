@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 
 @Data
@@ -16,6 +17,7 @@ public class LegalPolicyDTO {
     private String title;
     private String subtitle;
     private String lastUpdated;
+    private List<PolicySectionDTO> sections;
     private Map<String, String> policySections;
     private LocalDateTime updatedAt;
 }

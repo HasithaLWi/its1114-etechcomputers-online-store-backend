@@ -1027,12 +1027,14 @@ public class DataInitializer implements CommandLineRunner {
                     .id("terms-1")
                     .sectionTitle("Order Fulfillment & Pricing")
                     .sectionContent("All hardware prices are listed in Sri Lankan Rupees (LKR) with applicable VAT included. Orders are subject to stock validation and branch warehouse confirmation.")
+                    .bulletPoints("All listed prices are in Sri Lankan Rupees (LKR) and include applicable taxes | Pre-orders and custom workstation deposits require 50% advance confirmation | Typographical pricing errors will be rectified with immediate full refunds | Component reservations are held for a maximum of 24 hours")
                     .legalPolicy(lp1)
                     .build());
             lp1.addPolicySection(PolicySections.builder()
                     .id("terms-2")
-                    .sectionTitle("Shipping & Delivery")
-                    .sectionContent("We offer nationwide delivery with tracking. Estimated delivery times vary based on location and product availability.")
+                    .sectionTitle("Shipping & Delivery Guidelines")
+                    .sectionContent("We offer nationwide secure delivery with end-to-end tracking.")
+                    .bulletPoints("Standard courier dispatch takes 1 to 2 business days from the nearest warehouse | Pre-assembled custom PC builds undergo 24-hour thermal stress testing prior to dispatch | Fragile hardware packages are insured and packed with specialized anti-shock foam | Doorstep delivery pin coordinates confirmed via customer checkout map")
                     .legalPolicy(lp1)
                     .build());
 
@@ -1046,12 +1048,14 @@ public class DataInitializer implements CommandLineRunner {
                     .id("warranty-1")
                     .sectionTitle("Manufacturer Warranty Coverage")
                     .sectionContent("All laptops, GPUs, motherboards, and monitors are backed by authentic manufacturer warranties ranging from 2 to 3 years.")
+                    .bulletPoints("2-Year full hardware replacement warranty on custom workstation and gaming builds | Direct factory warranty tags with verifiable manufacturer serial numbers | 30-day rapid replacement policy on components with verified hardware defects | Zero service fees on warranty diagnosis conducted at any of our regional hubs")
                     .legalPolicy(lp2)
                     .build());
             lp2.addPolicySection(PolicySections.builder()
                     .id("warranty-2")
-                    .sectionTitle("RMA Return Protocols")
+                    .sectionTitle("RMA Return & Claim Protocols")
                     .sectionContent("Hardware claims can be submitted at any of our regional branch hubs across Colombo, Galle, Matara, or Kandy for priority diagnosis.")
+                    .bulletPoints("Standard 3 to 5 business day diagnosis window for hardware RMA claims | Loaner hardware units available for critical business workstation downtime | Transparent online ticket tracking from intake to manufacturer dispatch | Free return shipping once RMA repair or replacement is completed")
                     .legalPolicy(lp2)
                     .build());
 
@@ -1065,19 +1069,102 @@ public class DataInitializer implements CommandLineRunner {
             lp3.addPolicySection(PolicySections.builder()
                     .id("privacy-1")
                     .sectionTitle("Information Collection")
-                    .sectionContent("We securely collect user account details, shipping addresses, and transaction audit logs strictly to provide exceptional e-commerce experiences.")
+                    .sectionContent("At ETech Computers, we prioritize customer privacy. When you browse or place an order from our hardware store, we collect minimal necessary details including:")
+                    .bulletPoints("Account Registration Details: Full name, username, email address, phone number, and password hashes | Order & Delivery Information: Billing and shipping addresses required for fulfillment of computer rigs | Payment Processing: Encrypted transaction tokens without storing raw card numbers or CVV | Technical Diagnostics: Anonymized browser information, IP addresses, and device signatures")
                     .legalPolicy(lp3)
                     .build());
 
             lp3.addPolicySection(PolicySections.builder()
                     .id("privacy-2")
                     .sectionTitle("Data Protection Standards")
-                    .sectionContent("Customer records and authentication credentials are encrypted using industry-standard BCrypt and TLS 1.3 algorithms.")
+                    .sectionContent("We implement industry-standard AES-256 encryption and TLS 1.3 protocol standards across all store transactions.")
+                    .bulletPoints("Customer accounts secured behind multi-layered database firewalls | Zero third-party data broker sharing or marketing monetization of personal data | Verified logistics courier sharing strictly for parcel delivery fulfillment | Full customer rights to request complete data export or account deletion")
                     .legalPolicy(lp3)
                     .build());
 
-            legalPolicyRepository.saveAll(List.of(lp1, lp2, lp3));
-            log.info("Successfully seeded 3 legal policies with matching frontend IDs!");
+            LegalPolicy lp4 = LegalPolicy.builder()
+                    .id("returns")
+                    .title("Return & Refund Policy")
+                    .subtitle("7-day return guarantee, replacement procedures, and hassle-free refunds.")
+                    .lastUpdated("January 2026")
+                    .build();
+
+            lp4.addPolicySection(PolicySections.builder()
+                    .id("returns-1")
+                    .sectionTitle("7-Day Return Eligibility")
+                    .sectionContent("We offer a 7-day hassle-free return window from the date of package delivery. To be eligible for a return:")
+                    .bulletPoints("The hardware component or peripheral must be unused, sealed in its original anti-static packaging with all manufacturer accessories, manuals, and warranty barcodes intact | Proof of purchase (ETech Order ID, digital invoice, or registered email) must be presented | Open-box clearance items and digital software licenses are non-returnable unless defective on arrival")
+                    .legalPolicy(lp4)
+                    .build());
+
+            lp4.addPolicySection(PolicySections.builder()
+                    .id("returns-2")
+                    .sectionTitle("Defective On Arrival (DOA) Claims")
+                    .sectionContent("If your hardware arrives defective or cosmetically damaged in transit, report the issue within 48 hours of delivery. We will arrange express pickup and issue an immediate one-to-one replacement after initial technical inspection.")
+                    .bulletPoints("Express courier pickup arranged within 24 hours of notification | Free diagnostic assessment at Colombo Technical Hub | Instant replacement provided if defect is verified on intake")
+                    .legalPolicy(lp4)
+                    .build());
+
+            lp4.addPolicySection(PolicySections.builder()
+                    .id("returns-3")
+                    .sectionTitle("Refund Processing & Reimbursements")
+                    .sectionContent("Once returned hardware is inspected at our Colombo Technical Center (typically 2-3 business days), refunds are processed via the original payment method:")
+                    .bulletPoints("Credit/Debit Card Payments: Refund reflects within 3 to 5 business banking days | Bank Transfer / COD Orders: Direct transfer to customer's nominated Sri Lankan bank account within 48 hours | Store Credit: Instant credit voucher valid for 12 months on any component")
+                    .legalPolicy(lp4)
+                    .build());
+
+            lp4.addPolicySection(PolicySections.builder()
+                    .id("returns-4")
+                    .sectionTitle("Restocking Conditions")
+                    .sectionContent("Returns due to change-of-mind with unsealed packaging may be subject to a 10% restocking fee to cover anti-static recertification and testing costs.")
+                    .bulletPoints("Applies only to unsealed non-defective components returned within 7 days | No restocking fees on manufacturer defect or transit damage returns | Components must pass complete diagnostic benchmarks before refund approval")
+                    .legalPolicy(lp4)
+                    .build());
+
+            legalPolicyRepository.saveAll(List.of(lp1, lp2, lp3, lp4));
+            log.info("Successfully seeded 4 legal policies with matching frontend IDs!");
+        } else if (!legalPolicyRepository.existsById("returns")) {
+            LegalPolicy lp4 = LegalPolicy.builder()
+                    .id("returns")
+                    .title("Return & Refund Policy")
+                    .subtitle("7-day return guarantee, replacement procedures, and hassle-free refunds.")
+                    .lastUpdated("January 2026")
+                    .build();
+
+            lp4.addPolicySection(PolicySections.builder()
+                    .id("returns-1")
+                    .sectionTitle("7-Day Return Eligibility")
+                    .sectionContent("We offer a 7-day hassle-free return window from the date of package delivery. To be eligible for a return:")
+                    .bulletPoints("The hardware component or peripheral must be unused, sealed in its original anti-static packaging with all manufacturer accessories, manuals, and warranty barcodes intact | Proof of purchase (ETech Order ID, digital invoice, or registered email) must be presented | Open-box clearance items and digital software licenses are non-returnable unless defective on arrival")
+                    .legalPolicy(lp4)
+                    .build());
+
+            lp4.addPolicySection(PolicySections.builder()
+                    .id("returns-2")
+                    .sectionTitle("Defective On Arrival (DOA) Claims")
+                    .sectionContent("If your hardware arrives defective or cosmetically damaged in transit, report the issue within 48 hours of delivery. We will arrange express pickup and issue an immediate one-to-one replacement after initial technical inspection.")
+                    .bulletPoints("Express courier pickup arranged within 24 hours of notification | Free diagnostic assessment at Colombo Technical Hub | Instant replacement provided if defect is verified on intake")
+                    .legalPolicy(lp4)
+                    .build());
+
+            lp4.addPolicySection(PolicySections.builder()
+                    .id("returns-3")
+                    .sectionTitle("Refund Processing & Reimbursements")
+                    .sectionContent("Once returned hardware is inspected at our Colombo Technical Center (typically 2-3 business days), refunds are processed via the original payment method:")
+                    .bulletPoints("Credit/Debit Card Payments: Refund reflects within 3 to 5 business banking days | Bank Transfer / COD Orders: Direct transfer to customer's nominated Sri Lankan bank account within 48 hours | Store Credit: Instant credit voucher valid for 12 months on any component")
+                    .legalPolicy(lp4)
+                    .build());
+
+            lp4.addPolicySection(PolicySections.builder()
+                    .id("returns-4")
+                    .sectionTitle("Restocking Conditions")
+                    .sectionContent("Returns due to change-of-mind with unsealed packaging may be subject to a 10% restocking fee to cover anti-static recertification and testing costs.")
+                    .bulletPoints("Applies only to unsealed non-defective components returned within 7 days | No restocking fees on manufacturer defect or transit damage returns | Components must pass complete diagnostic benchmarks before refund approval")
+                    .legalPolicy(lp4)
+                    .build());
+
+            legalPolicyRepository.save(lp4);
+            log.info("Successfully added missing Return & Refund Policy (returns) to database!");
         }
     }
 
