@@ -1,5 +1,6 @@
 package lk.ijse.etechbackend.service.impl;
 
+import lk.ijse.etechbackend.dto.PageResponseDTO;
 import lk.ijse.etechbackend.dto.order.*;
 import lk.ijse.etechbackend.entity.*;
 import lk.ijse.etechbackend.enumiration.OrderStatus;
@@ -10,6 +11,10 @@ import lk.ijse.etechbackend.service.EmailService;
 import lk.ijse.etechbackend.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -56,6 +61,32 @@ public class OrderServiceImpl implements OrderService {
         }
 
         return orders.stream().map(this::toDTO).collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponseDTO<OrderResponseDTO> getFilteredOrders(OrderStatus status, String branchId, String search, int page, int size, String sortBy, String sortDir) {
+        log.info("Fetching paged orders (status={}, branchId={}, search={}, page={}, size={}, sortBy={}, sortDir={})",
+                status, branchId, search, page, size, sortBy, sortDir);
+
+        Sort.Direction direction = "asc".equalsIgnoreCase(sortDir) ? Sort.Direction.ASC : Sort.Direction.DESC;
+        String sortProperty = (sortBy != null && !sortBy.isBlank()) ? sortBy : "orderDate";
+        if ("totalAmount".equalsIgnoreCase(sortProperty) || "total".equalsIgnoreCase(sortProperty)) {
+            sortProperty = "totalAmount";
+        } else if ("date".equalsIgnoreCase(sortProperty)) {
+            sortProperty = "orderDate";
+        } else if ("id".equalsIgnoreCase(sortProperty)) {
+            sortProperty = "id";
+        }
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortProperty));
+
+        String cleanSearch = (search != null && !search.isBlank()) ? search.trim().toLowerCase() : null;
+        String cleanBranch = (branchId != null && !branchId.isBlank() && !"ALL".equalsIgnoreCase(branchId.trim())) ? branchId.trim() : null;
+
+        Page<Order> orderPage = orderRepository.filterOrdersPaged(status, cleanBranch, cleanSearch, pageable);
+        List<OrderResponseDTO> dtos = orderPage.getContent().stream().map(this::toDTO).collect(Collectors.toList());
+
+        return PageResponseDTO.of(orderPage, dtos);
     }
 
     @Override

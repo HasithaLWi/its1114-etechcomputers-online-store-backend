@@ -31,4 +31,17 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     @Query("SELECT COUNT(o) FROM Order o WHERE o.status != 'Cancelled'")
     Long countValidOrders();
+
+    @Query("SELECT o FROM Order o WHERE " +
+           "(:status IS NULL OR o.status = :status) AND " +
+           "(:branchId IS NULL OR o.fulfillmentBranch.id = :branchId) AND " +
+           "(:search IS NULL OR LOWER(o.orderCode) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           " LOWER(o.customerName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           " LOWER(o.customerEmail) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           " LOWER(o.city) LIKE LOWER(CONCAT('%', :search, '%')))")
+    Page<Order> filterOrdersPaged(
+            @Param("status") OrderStatus status,
+            @Param("branchId") String branchId,
+            @Param("search") String search,
+            Pageable pageable);
 }

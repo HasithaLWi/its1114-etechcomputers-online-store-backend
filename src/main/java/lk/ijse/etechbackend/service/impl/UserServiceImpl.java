@@ -14,6 +14,10 @@ import lk.ijse.etechbackend.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -60,6 +64,39 @@ public class UserServiceImpl implements UserService {
         List<User> users = userRepository.filterUsers(excludeSuperAdmin, roleFilter, branchFilter, search);
 
         return getUserDTOS(currentUser, currentRole, users);
+    }
+
+    @Override
+    public PageResponseDTO<UserDTO> getFilteredUsers(String currentUsername, UserRole role, Status status, String branch, String userType, String search, int page, int size, String sortBy, String sortDir) {
+        User currentUser = getCurrentUserEntity(currentUsername);
+        UserRole currentRole = currentUser.getRole();
+
+        if (currentRole != UserRole.SUPERADMIN && currentRole != UserRole.ADMIN) {
+            throw new ForbiddenException("Access denied: Only SUPERADMIN and ADMIN can view the user directory");
+        }
+
+        boolean excludeSuperAdmin = (currentRole == UserRole.ADMIN);
+        Sort.Direction direction = "asc".equalsIgnoreCase(sortDir) ? Sort.Direction.ASC : Sort.Direction.DESC;
+        String sortProperty = (sortBy != null && !sortBy.isBlank()) ? sortBy : "id";
+        if ("name".equalsIgnoreCase(sortProperty)) {
+            sortProperty = "name";
+        } else if ("username".equalsIgnoreCase(sortProperty)) {
+            sortProperty = "username";
+        } else if ("email".equalsIgnoreCase(sortProperty)) {
+            sortProperty = "email";
+        } else if ("createdAt".equalsIgnoreCase(sortProperty) || "date".equalsIgnoreCase(sortProperty)) {
+            sortProperty = "createdAt";
+        }
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortProperty));
+
+        String cleanSearch = (search != null && !search.isBlank()) ? search.trim().toLowerCase() : null;
+        String cleanBranch = (branch != null && !branch.isBlank() && !"ALL".equalsIgnoreCase(branch.trim())) ? branch.trim() : null;
+        String cleanUserType = (userType != null && !userType.isBlank() && !"all".equalsIgnoreCase(userType.trim())) ? userType.trim().toLowerCase() : null;
+
+        Page<User> userPage = userRepository.filterUsersPaged(excludeSuperAdmin, role, status, cleanBranch, cleanUserType, cleanSearch, pageable);
+        List<UserDTO> dtos = getUserDTOS(currentUser, currentRole, userPage.getContent());
+
+        return PageResponseDTO.of(userPage, dtos);
     }
 
     @Override

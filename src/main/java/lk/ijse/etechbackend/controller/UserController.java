@@ -2,6 +2,7 @@ package lk.ijse.etechbackend.controller;
 
 import jakarta.validation.Valid;
 import lk.ijse.etechbackend.dto.*;
+import lk.ijse.etechbackend.enumiration.Status;
 import lk.ijse.etechbackend.enumiration.UserRole;
 import lk.ijse.etechbackend.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +39,30 @@ public class UserController {
                 .status(HttpStatus.OK.value())
                 .message("Users retrieved successfully")
                 .body(users)
+                .build());
+    }
+
+    @GetMapping(value = "/filter", produces = MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN')")
+    public ResponseEntity<CommonResponse> getFilteredUsers(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestParam(required = false) UserRole role,
+            @RequestParam(required = false) Status status,
+            @RequestParam(required = false) String branch,
+            @RequestParam(required = false) String userType,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "id") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir) {
+        log.info("REST: Querying users paged by {} - role: {}, status: {}, branch: {}, userType: {}, search: {}, page: {}, size: {}, sortBy: {}, sortDir: {}",
+                userDetails.getUsername(), role, status, branch, userType, search, page, size, sortBy, sortDir);
+        PageResponseDTO<UserDTO> response = userService.getFilteredUsers(
+                userDetails.getUsername(), role, status, branch, userType, search, page, size, sortBy, sortDir);
+        return ResponseEntity.ok(CommonResponse.builder()
+                .status(HttpStatus.OK.value())
+                .message("Users retrieved successfully")
+                .body(response)
                 .build());
     }
 

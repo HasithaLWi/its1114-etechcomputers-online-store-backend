@@ -2,7 +2,9 @@ package lk.ijse.etechbackend.controller;
 
 import jakarta.validation.Valid;
 import lk.ijse.etechbackend.dto.CommonResponse;
+import lk.ijse.etechbackend.dto.PageResponseDTO;
 import lk.ijse.etechbackend.dto.order.OrderCreateRequestDTO;
+import lk.ijse.etechbackend.dto.order.OrderResponseDTO;
 import lk.ijse.etechbackend.dto.order.OrderStatusUpdateDTO;
 import lk.ijse.etechbackend.enumiration.OrderStatus;
 import lk.ijse.etechbackend.exception.BadRequestException;
@@ -35,6 +37,27 @@ public class OrderController {
                 .status(HttpStatus.OK.value())
                 .message("Orders retrieved successfully")
                 .body(orderService.getAllOrders(status, branchId))
+                .build());
+    }
+
+    @GetMapping(value = "/filter", produces = MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN', 'STAFF')")
+    public ResponseEntity<CommonResponse> getFilteredOrders(
+            @RequestParam(required = false) OrderStatus status,
+            @RequestParam(required = false) String branchId,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "orderDate") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir) {
+        log.info("REST: Querying orders paged - status: {}, branchId: {}, search: {}, page: {}, size: {}, sortBy: {}, sortDir: {}",
+                status, branchId, search, page, size, sortBy, sortDir);
+        PageResponseDTO<OrderResponseDTO> response = orderService.getFilteredOrders(
+                status, branchId, search, page, size, sortBy, sortDir);
+        return ResponseEntity.ok(CommonResponse.builder()
+                .status(HttpStatus.OK.value())
+                .message("Orders retrieved successfully")
+                .body(response)
                 .build());
     }
 
