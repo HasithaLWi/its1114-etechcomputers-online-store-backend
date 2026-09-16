@@ -1,8 +1,10 @@
 package lk.ijse.etechbackend.controller;
 
 import jakarta.validation.Valid;
+import lk.ijse.etechbackend.dto.ApiResponse;
 import lk.ijse.etechbackend.dto.AuthDTO;
 import lk.ijse.etechbackend.dto.AuthResponseDTO;
+import lk.ijse.etechbackend.dto.ForgotPasswordDTO;
 import lk.ijse.etechbackend.dto.UserDTO;
 import lk.ijse.etechbackend.service.AuthService;
 import lombok.RequiredArgsConstructor;
@@ -42,5 +44,26 @@ public class AuthController {
         log.info("REST: Get current user profile for: {}", userDetails.getUsername());
         UserDTO userDTO = authService.getCurrentUser(userDetails.getUsername());
         return ResponseEntity.ok(userDTO);
+    }
+
+    @PostMapping("/forgot-password/request-otp")
+    public ResponseEntity<ApiResponse> requestPasswordResetOtp(@Valid @RequestBody ForgotPasswordDTO.RequestOtp request) {
+        log.info("REST: Password reset OTP request for: {}", request.getIdentifier());
+        ApiResponse response = authService.requestPasswordResetOtp(request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/forgot-password/verify-otp")
+    public ResponseEntity<ApiResponse> verifyPasswordResetOtp(@Valid @RequestBody ForgotPasswordDTO.VerifyOtp request) {
+        log.info("REST: Password reset OTP verification for: {}", request.getIdentifier());
+        ApiResponse response = authService.verifyPasswordResetOtp(request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/forgot-password/reset-password")
+    public ResponseEntity<ApiResponse> resetPassword(@Valid @RequestBody ForgotPasswordDTO.ResetPassword request) {
+        log.info("REST: Password reset completion for: {}", request.getIdentifier());
+        ApiResponse response = authService.resetPassword(request);
+        return ResponseEntity.ok(response);
     }
 }

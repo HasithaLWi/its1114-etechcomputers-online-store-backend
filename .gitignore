@@ -1,5 +1,5 @@
 # =========================================================================
-# ETech Computers Backend — Git Ignore Rules
+# ETech Computers Backend â€” Git Ignore Rules
 # =========================================================================
 
 # Documentation & Scratch Plans
@@ -116,3 +116,13 @@ $RECYCLE.BIN/
 *~
 .fuse_hidden*
 .directory
+
+
+# ============================================================
+# Private Local Secrets & Credentials (Never commit to Git)
+# ============================================================
+*application-local.properties
+application-local.properties
+.env
+.env.*
+*.env
