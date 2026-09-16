@@ -86,6 +86,13 @@ public class Order {
     @Builder.Default
     private String paymentMethod = "Credit / Debit Card";
 
+    @Column(name = "payment_reference", length = 100)
+    private String paymentReference;
+
+    @Column(name = "payment_status", length = 50)
+    @Builder.Default
+    private String paymentStatus = "PAID";
+
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default
     private List<OrderItem> items = new ArrayList<>();

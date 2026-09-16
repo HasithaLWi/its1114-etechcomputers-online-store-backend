@@ -34,6 +34,8 @@ public class OrderCreateRequestDTO {
     private BigDecimal deliveryLatitude;
     private BigDecimal deliveryLongitude;
     private String paymentMethod;
+    private String paymentReference;
+    private String paymentStatus;
 
     @NotEmpty(message = "Order items cannot be empty")
     private List<OrderItemRequestDTO> items;

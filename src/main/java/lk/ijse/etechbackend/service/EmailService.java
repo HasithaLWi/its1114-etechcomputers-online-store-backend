@@ -1,8 +1,13 @@
 package lk.ijse.etechbackend.service;
 
 import lk.ijse.etechbackend.dto.SupportInquiryDTO;
+import lk.ijse.etechbackend.entity.Order;
 
 public interface EmailService {
+
+    void sendOrderConfirmationInvoice(Order order);
+
+    void sendOrderDeliveredInvoice(Order order);
 
     void sendPasswordResetOtp(String toEmail, String recipientName, String otp);
 

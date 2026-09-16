@@ -33,6 +33,8 @@ public class OrderResponseDTO {
     private BigDecimal totalAmount;
     private OrderStatus status;
     private String paymentMethod;
+    private String paymentReference;
+    private String paymentStatus;
     private List<OrderItemResponseDTO> items;
     private LocalDateTime orderDate;
     private LocalDateTime updatedAt;

@@ -6,6 +6,7 @@ import lk.ijse.etechbackend.enumiration.OrderStatus;
 import lk.ijse.etechbackend.exception.BadRequestException;
 import lk.ijse.etechbackend.exception.ResourceNotFoundException;
 import lk.ijse.etechbackend.repository.*;
+import lk.ijse.etechbackend.service.EmailService;
 import lk.ijse.etechbackend.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +35,7 @@ public class OrderServiceImpl implements OrderService {
     private final UserRepository userRepository;
     private final DealBundleRepository dealBundleRepository;
     private final HotDealRepository hotDealRepository;
+    private final EmailService emailService;
 
     @Override
     @Transactional(readOnly = true)
@@ -100,6 +102,29 @@ public class OrderServiceImpl implements OrderService {
         boolean isFreeShippingPromo = false;
         java.util.Set<Long> processedBundleIds = new java.util.HashSet<>();
 
+        String paymentMethod = request.getPaymentMethod() != null ? request.getPaymentMethod().trim() : "Credit / Debit Card";
+        String paymentReference = request.getPaymentReference();
+        if (paymentReference == null || paymentReference.isBlank()) {
+            if (paymentMethod.toLowerCase().contains("cash") || paymentMethod.toLowerCase().contains("delivery")) {
+                paymentReference = "COD-REF-" + (int)(Math.random() * 900000 + 100000);
+            } else {
+                paymentReference = "PAY-LKR-" + (int)(Math.random() * 900000 + 100000);
+            }
+        } else {
+            paymentReference = paymentReference.trim();
+        }
+
+        String paymentStatus = request.getPaymentStatus();
+        if (paymentStatus == null || paymentStatus.isBlank()) {
+            if (paymentMethod.toLowerCase().contains("cash") || paymentMethod.toLowerCase().contains("delivery")) {
+                paymentStatus = "PENDING_ON_DELIVERY";
+            } else {
+                paymentStatus = "PAID";
+            }
+        } else {
+            paymentStatus = paymentStatus.trim().toUpperCase();
+        }
+
         Order order = Order.builder()
                 .orderCode(orderCode)
                 .user(user)
@@ -117,7 +142,9 @@ public class OrderServiceImpl implements OrderService {
                 .tax(BigDecimal.ZERO)
                 .totalAmount(BigDecimal.ZERO)
                 .status(OrderStatus.Pending)
-                .paymentMethod(request.getPaymentMethod() != null ? request.getPaymentMethod() : "Credit / Debit Card")
+                .paymentMethod(paymentMethod)
+                .paymentReference(paymentReference)
+                .paymentStatus(paymentStatus)
                 .build();
 
         for (OrderItemRequestDTO itemReq : request.getItems()) {
@@ -177,6 +204,10 @@ public class OrderServiceImpl implements OrderService {
             BigDecimal itemTotal = effectiveUnitPrice.multiply(BigDecimal.valueOf(reqQty));
             subtotal = subtotal.add(itemTotal);
 
+            String itemWarranty = product.getWarranty() != null && !product.getWarranty().isBlank()
+                    ? product.getWarranty().trim()
+                    : "Official Hardware Warranty";
+
             OrderItem orderItem = OrderItem.builder()
                     .order(order)
                     .product(product)
@@ -186,6 +217,7 @@ public class OrderServiceImpl implements OrderService {
                     .quantity(reqQty)
                     .totalPrice(itemTotal)
                     .bundleId(itemReq.getBundleId())
+                    .warranty(itemWarranty)
                     .build();
 
             orderItems.add(orderItem);
@@ -200,8 +232,16 @@ public class OrderServiceImpl implements OrderService {
         order.setItems(orderItems);
 
         Order savedOrder = orderRepository.save(order);
-        log.info("Successfully created order code: {} (total: {}, freeShipping: {})",
-                savedOrder.getOrderCode(), savedOrder.getTotalAmount(), isFreeShippingPromo);
+        log.info("Successfully created order code: {} (total: {}, freeShipping: {}, paymentStatus: {})",
+                savedOrder.getOrderCode(), savedOrder.getTotalAmount(), isFreeShippingPromo, savedOrder.getPaymentStatus());
+
+        // Dispatch official Tax Invoice & Order Confirmation email asynchronously
+        try {
+            emailService.sendOrderConfirmationInvoice(savedOrder);
+        } catch (Exception e) {
+            log.error("Failed to trigger order confirmation invoice email for order #{}: {}", savedOrder.getOrderCode(), e.getMessage());
+        }
+
         return toDTO(savedOrder);
     }
 
@@ -237,8 +277,23 @@ public class OrderServiceImpl implements OrderService {
             }
         }
 
+        // When order is Delivered, mark payment status as PAID (e.g. settling Cash on Delivery)
+        if (newStatus == OrderStatus.Delivered) {
+            order.setPaymentStatus("PAID");
+        }
+
         order.setStatus(newStatus);
         Order saved = orderRepository.save(order);
+
+        // Dispatch complete Tax Invoice with PAID status on delivery
+        if (newStatus == OrderStatus.Delivered) {
+            try {
+                emailService.sendOrderDeliveredInvoice(saved);
+            } catch (Exception e) {
+                log.error("Failed to trigger order delivered invoice email for order #{}: {}", saved.getOrderCode(), e.getMessage());
+            }
+        }
+
         return toDTO(saved);
     }
 
@@ -271,6 +326,14 @@ public class OrderServiceImpl implements OrderService {
                 if (item.getProduct() != null && item.getProduct().getImages() != null && !item.getProduct().getImages().isEmpty()) {
                     image = item.getProduct().getImages().get(0).getImageUrl();
                 }
+                String warranty = item.getWarranty();
+                if ((warranty == null || warranty.isBlank()) && item.getProduct() != null) {
+                    warranty = item.getProduct().getWarranty();
+                }
+                if (warranty == null || warranty.isBlank()) {
+                    warranty = "Official Hardware Warranty";
+                }
+
                 itemDTOs.add(OrderItemResponseDTO.builder()
                         .id(item.getId())
                         .productId(item.getProduct() != null ? item.getProduct().getId() : null)
@@ -281,6 +344,7 @@ public class OrderServiceImpl implements OrderService {
                         .totalPrice(item.getTotalPrice())
                         .image(image)
                         .bundleId(item.getBundleId())
+                        .warranty(warranty)
                         .build());
             }
         }
@@ -305,6 +369,8 @@ public class OrderServiceImpl implements OrderService {
                 .totalAmount(o.getTotalAmount())
                 .status(o.getStatus())
                 .paymentMethod(o.getPaymentMethod())
+                .paymentReference(o.getPaymentReference())
+                .paymentStatus(o.getPaymentStatus())
                 .items(itemDTOs)
                 .orderDate(o.getOrderDate())
                 .updatedAt(o.getUpdatedAt())
