@@ -1,26 +1,20 @@
 package lk.ijse.etechbackend.service.impl;
 
-import lk.ijse.etechbackend.dto.analytics.AnalyticsOverviewDTO;
-import lk.ijse.etechbackend.dto.analytics.BranchRevenueDTO;
-import lk.ijse.etechbackend.dto.analytics.TopProductDTO;
-import lk.ijse.etechbackend.entity.Branch;
-import lk.ijse.etechbackend.entity.Order;
-import lk.ijse.etechbackend.entity.OrderItem;
+import lk.ijse.etechbackend.dto.analytics.*;
 import lk.ijse.etechbackend.enumiration.OrderStatus;
-import lk.ijse.etechbackend.repository.BranchRepository;
-import lk.ijse.etechbackend.repository.OrderItemRepository;
-import lk.ijse.etechbackend.repository.OrderRepository;
-import lk.ijse.etechbackend.repository.UserRepository;
+import lk.ijse.etechbackend.repository.*;
 import lk.ijse.etechbackend.service.AnalyticsService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -32,10 +26,12 @@ public class AnalyticsServiceImpl implements AnalyticsService {
     private final OrderItemRepository orderItemRepository;
     private final BranchRepository branchRepository;
     private final UserRepository userRepository;
+    private final ProductRepository productRepository;
+    private final BranchInventoryRepository branchInventoryRepository;
 
     @Override
     public AnalyticsOverviewDTO getOverview() {
-        log.info("Calculating financial analytics overview");
+        log.info("Calculating executive financial overview");
         BigDecimal grossRevenue = orderRepository.calculateGrossRevenue();
         if (grossRevenue == null) grossRevenue = BigDecimal.ZERO;
 
@@ -58,78 +54,248 @@ public class AnalyticsServiceImpl implements AnalyticsService {
 
     @Override
     public List<BranchRevenueDTO> getBranchRevenue() {
-        log.info("Calculating branch revenue breakdown");
-        List<Order> orders = orderRepository.findAll().stream()
-                .filter(o -> o.getStatus() != OrderStatus.Cancelled)
-                .collect(Collectors.toList());
-
-        List<Branch> branches = branchRepository.findAll();
-        BigDecimal totalGross = orderRepository.calculateGrossRevenue();
-        if (totalGross == null || totalGross.compareTo(BigDecimal.ZERO) == 0) {
-            totalGross = BigDecimal.ONE; // prevent div by zero
-        }
-
-        Map<String, Long> countMap = new HashMap<>();
-        Map<String, BigDecimal> revMap = new HashMap<>();
-
-        for (Branch b : branches) {
-            countMap.put(b.getId(), 0L);
-            revMap.put(b.getId(), BigDecimal.ZERO);
-        }
-
-        for (Order o : orders) {
-            if (o.getFulfillmentBranch() != null) {
-                String bid = o.getFulfillmentBranch().getId();
-                countMap.put(bid, countMap.getOrDefault(bid, 0L) + 1);
-                revMap.put(bid, revMap.getOrDefault(bid, BigDecimal.ZERO).add(o.getTotalAmount()));
-            }
-        }
-
-        List<BranchRevenueDTO> result = new ArrayList<>();
-        for (Branch b : branches) {
-            BigDecimal rev = revMap.getOrDefault(b.getId(), BigDecimal.ZERO);
-            long count = countMap.getOrDefault(b.getId(), 0L);
-            BigDecimal pct = rev.multiply(BigDecimal.valueOf(100)).divide(totalGross, 1, RoundingMode.HALF_UP);
-
-            result.add(BranchRevenueDTO.builder()
-                    .branchId(b.getId())
-                    .branchName(b.getName())
-                    .orderCount(count)
-                    .revenue(rev)
-                    .percentage(pct)
+        log.info("Calculating branch revenue summary");
+        List<BranchPerformanceDTO> performances = getBranchPerformance(null, null);
+        List<BranchRevenueDTO> results = new ArrayList<>();
+        for (BranchPerformanceDTO bp : performances) {
+            results.add(BranchRevenueDTO.builder()
+                    .branchId(bp.getBranchId())
+                    .branchName(bp.getBranchName())
+                    .orderCount(bp.getOrderCount())
+                    .revenue(bp.getRevenue())
+                    .percentage(bp.getPercentage())
                     .build());
         }
-
-        return result;
+        return results;
     }
 
     @Override
     public List<TopProductDTO> getTopProducts(int limit) {
-        log.info("Fetching top selling products (limit={})", limit);
-        List<OrderItem> items = orderItemRepository.findAll();
+        return getTopProductsFiltered(null, null, null, limit);
+    }
 
-        Map<Long, String> nameMap = new HashMap<>();
-        Map<Long, Long> unitsMap = new HashMap<>();
-        Map<Long, BigDecimal> revMap = new HashMap<>();
+    @Override
+    public AnalyticsSummaryDTO getSummary(LocalDateTime from, LocalDateTime to, String branchId) {
+        log.info("SQL Aggregating analytics summary: from={}, to={}, branchId={}", from, to, branchId);
 
-        for (OrderItem item : items) {
-            if (item.getProduct() != null && item.getOrder() != null && item.getOrder().getStatus() != OrderStatus.Cancelled) {
-                Long pid = item.getProduct().getId();
-                nameMap.put(pid, item.getProductName());
-                unitsMap.put(pid, unitsMap.getOrDefault(pid, 0L) + item.getQuantity());
-                revMap.put(pid, revMap.getOrDefault(pid, BigDecimal.ZERO).add(item.getTotalPrice()));
+        BigDecimal grossRevenue = orderRepository.calculateFilteredGrossRevenue(from, to, branchId);
+        if (grossRevenue == null) grossRevenue = BigDecimal.ZERO;
+
+        BigDecimal netRevenue = orderRepository.calculateFilteredNetRevenue(from, to, branchId);
+        if (netRevenue == null) netRevenue = BigDecimal.ZERO;
+
+        Long totalOrdersVal = orderRepository.countFilteredOrders(from, to, branchId);
+        long totalOrders = totalOrdersVal != null ? totalOrdersVal : 0L;
+
+        Long completedVal = orderRepository.countFilteredOrdersByStatus(from, to, branchId, lk.ijse.etechbackend.enumiration.OrderStatus.Delivered);
+        long completedOrders = completedVal != null ? completedVal : 0L;
+
+        Long pendingVal = orderRepository.countFilteredOrdersByStatus(from, to, branchId, lk.ijse.etechbackend.enumiration.OrderStatus.Pending);
+        long pendingOrders = pendingVal != null ? pendingVal : 0L;
+
+        Long cancelledVal = orderRepository.countFilteredOrdersByStatus(from, to, branchId, lk.ijse.etechbackend.enumiration.OrderStatus.Cancelled);
+        long cancelledOrders = cancelledVal != null ? cancelledVal : 0L;
+
+        Long unitsSoldVal = orderRepository.calculateTotalUnitsSold(from, to, branchId);
+        long totalUnitsSold = unitsSoldVal != null ? unitsSoldVal : 0L;
+
+        long nonCancelled = totalOrders - cancelledOrders;
+        BigDecimal avgOrderValue = nonCancelled > 0
+                ? netRevenue.divide(BigDecimal.valueOf(nonCancelled), 2, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
+
+        double fulfillmentRate = nonCancelled > 0
+                ? (double) Math.round(((double) completedOrders / nonCancelled) * 1000.0) / 10.0
+                : 0.0;
+
+        long activeUsers = userRepository.count();
+
+        return AnalyticsSummaryDTO.builder()
+                .grossRevenue(grossRevenue)
+                .netRevenue(netRevenue)
+                .totalOrders(totalOrders)
+                .completedOrders(completedOrders)
+                .pendingOrders(pendingOrders)
+                .cancelledOrders(cancelledOrders)
+                .avgOrderValue(avgOrderValue)
+                .totalUnitsSold(totalUnitsSold)
+                .fulfillmentRate(fulfillmentRate)
+                .activeUsers(activeUsers)
+                .build();
+    }
+
+    @Override
+    public List<SalesTrendDTO> getSalesTrends(LocalDateTime from, LocalDateTime to, String branchId) {
+        log.info("Fetching daily sales trend: from={}, to={}, branchId={}", from, to, branchId);
+        List<Object[]> rows = orderRepository.findDailySalesTrend(from, to, branchId);
+        List<SalesTrendDTO> trends = new ArrayList<>();
+
+        for (Object[] row : rows) {
+            String dateStr = String.valueOf(row[0]);
+            BigDecimal rev = row[1] instanceof BigDecimal
+                    ? (BigDecimal) row[1]
+                    : new BigDecimal(String.valueOf(row[1]));
+            long ordersCount = ((Number) row[2]).longValue();
+
+            trends.add(SalesTrendDTO.builder()
+                    .date(dateStr)
+                    .revenue(rev)
+                    .orderCount(ordersCount)
+                    .build());
+        }
+        return trends;
+    }
+
+    @Override
+    public List<BranchPerformanceDTO> getBranchPerformance(LocalDateTime from, LocalDateTime to) {
+        log.info("Fetching multi-branch performance matrix: from={}, to={}", from, to);
+        List<Object[]> rows = orderRepository.findBranchPerformance(from, to);
+
+        BigDecimal totalRevenue = BigDecimal.ZERO;
+        List<BranchPerformanceDTO> list = new ArrayList<>();
+
+        for (Object[] row : rows) {
+            String bid = (String) row[0];
+            String bname = (String) row[1];
+            String city = (String) row[2];
+            long count = ((Number) row[3]).longValue();
+            long completed = ((Number) row[4]).longValue();
+            BigDecimal rev = row[5] instanceof BigDecimal
+                    ? (BigDecimal) row[5]
+                    : new BigDecimal(String.valueOf(row[5]));
+
+            totalRevenue = totalRevenue.add(rev);
+
+            double rate = count > 0 ? (double) Math.round(((double) completed / count) * 1000.0) / 10.0 : 0.0;
+
+            list.add(BranchPerformanceDTO.builder()
+                    .branchId(bid)
+                    .branchName(bname)
+                    .city(city != null ? city : "Main Hub")
+                    .orderCount(count)
+                    .completedOrders(completed)
+                    .revenue(rev)
+                    .percentage(BigDecimal.ZERO)
+                    .fulfillmentRate(rate)
+                    .build());
+        }
+
+        if (totalRevenue.compareTo(BigDecimal.ZERO) > 0) {
+            for (BranchPerformanceDTO bp : list) {
+                BigDecimal pct = bp.getRevenue().multiply(BigDecimal.valueOf(100))
+                        .divide(totalRevenue, 1, RoundingMode.HALF_UP);
+                bp.setPercentage(pct);
             }
         }
 
-        return unitsMap.entrySet().stream()
-                .map(e -> TopProductDTO.builder()
-                        .productId(e.getKey())
-                        .name(nameMap.get(e.getKey()))
-                        .unitsSold(e.getValue())
-                        .revenue(revMap.getOrDefault(e.getKey(), BigDecimal.ZERO))
-                        .build())
-                .sorted(Comparator.comparing(TopProductDTO::getUnitsSold).reversed())
-                .limit(limit > 0 ? limit : 5)
-                .collect(Collectors.toList());
+        return list;
+    }
+
+    @Override
+    public List<CategoryPerformanceDTO> getCategoryPerformance(LocalDateTime from, LocalDateTime to, String branchId) {
+        log.info("Fetching category performance breakdown: from={}, to={}, branchId={}", from, to, branchId);
+        List<Object[]> rows = orderItemRepository.findCategoryPerformance(from, to, branchId);
+
+        BigDecimal totalCategoryRev = BigDecimal.ZERO;
+        List<CategoryPerformanceDTO> list = new ArrayList<>();
+
+        for (Object[] row : rows) {
+            String catId = String.valueOf(row[0]);
+            String catName = String.valueOf(row[1]);
+            long units = ((Number) row[2]).longValue();
+            BigDecimal rev = row[3] instanceof BigDecimal
+                    ? (BigDecimal) row[3]
+                    : new BigDecimal(String.valueOf(row[3]));
+
+            totalCategoryRev = totalCategoryRev.add(rev);
+
+            list.add(CategoryPerformanceDTO.builder()
+                    .categoryId(catId)
+                    .categoryName(catName)
+                    .unitsSold(units)
+                    .revenue(rev)
+                    .percentage(BigDecimal.ZERO)
+                    .build());
+        }
+
+        if (totalCategoryRev.compareTo(BigDecimal.ZERO) > 0) {
+            for (CategoryPerformanceDTO cp : list) {
+                BigDecimal pct = cp.getRevenue().multiply(BigDecimal.valueOf(100))
+                        .divide(totalCategoryRev, 1, RoundingMode.HALF_UP);
+                cp.setPercentage(pct);
+            }
+        }
+
+        return list;
+    }
+
+    @Override
+    public List<TopProductDTO> getTopProductsFiltered(LocalDateTime from, LocalDateTime to, String branchId, int limit) {
+        int take = limit > 0 ? limit : 10;
+        log.info("Fetching top selling hardware products (limit={})", take);
+        List<Object[]> rows = orderItemRepository.findTopSellingProducts(from, to, branchId, PageRequest.of(0, take));
+
+        List<TopProductDTO> list = new ArrayList<>();
+        for (Object[] row : rows) {
+            Long pid = ((Number) row[0]).longValue();
+            String name = (String) row[1];
+            String sku = (String) row[2];
+            String catName = (String) row[3];
+            long units = ((Number) row[4]).longValue();
+            BigDecimal rev = row[5] instanceof BigDecimal
+                    ? (BigDecimal) row[5]
+                    : new BigDecimal(String.valueOf(row[5]));
+
+            list.add(TopProductDTO.builder()
+                    .productId(pid)
+                    .name(name)
+                    .sku(sku)
+                    .categoryName(catName)
+                    .unitsSold(units)
+                    .revenue(rev)
+                    .build());
+        }
+        return list;
+    }
+
+    @Override
+    public InventoryHealthDTO getInventoryHealth(String branchId) {
+        log.info("Fetching inventory health metrics: branchId={}", branchId);
+        long totalProducts = productRepository.count();
+        Long totalUnitsVal = branchInventoryRepository.calculateTotalUnitsInStock(branchId);
+        long totalUnits = totalUnitsVal != null ? totalUnitsVal : 0L;
+
+        Long lowStockVal = branchInventoryRepository.countLowStockItems(branchId);
+        long lowStock = lowStockVal != null ? lowStockVal : 0L;
+
+        Long outOfStockVal = branchInventoryRepository.countOutOfStockItems(branchId);
+        long outOfStock = outOfStockVal != null ? outOfStockVal : 0L;
+
+        List<Object[]> branchRows = branchInventoryRepository.findBranchStockSummaries();
+        List<InventoryHealthDTO.BranchStockSummaryDTO> branchSummaries = new ArrayList<>();
+
+        for (Object[] row : branchRows) {
+            String bid = (String) row[0];
+            String bname = (String) row[1];
+            long units = ((Number) row[2]).longValue();
+            long lowCount = ((Number) row[3]).longValue();
+            long outCount = ((Number) row[4]).longValue();
+
+            branchSummaries.add(InventoryHealthDTO.BranchStockSummaryDTO.builder()
+                    .branchId(bid)
+                    .branchName(bname)
+                    .totalUnits(units)
+                    .lowStockItems(lowCount)
+                    .outOfStockItems(outCount)
+                    .build());
+        }
+
+        return InventoryHealthDTO.builder()
+                .totalCatalogProducts(totalProducts)
+                .totalUnitsInStock(totalUnits)
+                .lowStockCount(lowStock)
+                .outOfStockCount(outOfStock)
+                .branchSummaries(branchSummaries)
+                .build();
     }
 }
