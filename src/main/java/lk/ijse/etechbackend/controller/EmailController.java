@@ -2,6 +2,7 @@ package lk.ijse.etechbackend.controller;
 
 import jakarta.validation.Valid;
 import lk.ijse.etechbackend.dto.ApiResponse;
+import lk.ijse.etechbackend.dto.CommonResponse;
 import lk.ijse.etechbackend.dto.SupportInquiryDTO;
 import lk.ijse.etechbackend.service.EmailService;
 import lombok.RequiredArgsConstructor;
@@ -18,9 +19,12 @@ public class EmailController {
     private final EmailService emailService;
 
     @PostMapping("/support")
-    public ResponseEntity<ApiResponse> sendSupportInquiry(@Valid @RequestBody SupportInquiryDTO inquiry) {
+    public ResponseEntity<CommonResponse> sendSupportInquiry(@Valid @RequestBody SupportInquiryDTO inquiry) {
         log.info("REST: Support inquiry received from [{}] with subject [{}]", inquiry.getEmail(), inquiry.getSubject());
         emailService.sendSupportInquiry(inquiry);
-        return ResponseEntity.ok(ApiResponse.success("Your message has been delivered to ETech Support. An acknowledgment has been sent to your email."));
+        return ResponseEntity.ok(CommonResponse.builder()
+                .status(200)
+                .message("Your message has been delivered to ETech Support. An acknowledgment has been sent to your email.")
+                .build());
     }
 }
