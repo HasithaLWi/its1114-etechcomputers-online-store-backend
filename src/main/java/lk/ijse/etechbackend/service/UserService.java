@@ -11,6 +11,8 @@ public interface UserService {
 
     List<UserDTO> getAllUsers(String currentUsername, UserRole roleFilter, String branchFilter, String search);
 
+    PageResponseDTO<UserDTO> getFilteredUsers(String currentUsername, UserRole role, lk.ijse.etechbackend.enumiration.Status status, String branch, String userType, String search, int page, int size, String sortBy, String sortDir);
+
     List<UserDTO> getAllCustomers(String currentUsername, String search);
 
     UserDTO getUserById(String currentUsername, Long id);

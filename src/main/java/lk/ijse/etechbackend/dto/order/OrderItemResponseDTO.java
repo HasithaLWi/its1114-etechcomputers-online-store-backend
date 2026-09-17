@@ -20,4 +20,5 @@ public class OrderItemResponseDTO {
     private BigDecimal totalPrice;
     private String image;
     private Long bundleId;
+    private String warranty;
 }

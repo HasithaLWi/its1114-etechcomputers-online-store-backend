@@ -8,7 +8,9 @@ import lk.ijse.etechbackend.enumiration.SubscriberStatus;
 import lk.ijse.etechbackend.exception.ResourceNotFoundException;
 import lk.ijse.etechbackend.repository.NewsletterCampaignRepository;
 import lk.ijse.etechbackend.repository.NewsletterSubscriberRepository;
+import lk.ijse.etechbackend.service.EmailService;
 import lk.ijse.etechbackend.service.NewsletterService;
+import java.util.concurrent.CompletableFuture;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -32,6 +34,7 @@ public class NewsletterServiceImpl implements NewsletterService {
 
     private final NewsletterSubscriberRepository subscriberRepository;
     private final NewsletterCampaignRepository campaignRepository;
+    private final EmailService emailService;
 
     @Override
     @Transactional(readOnly = true)
@@ -97,6 +100,13 @@ public class NewsletterServiceImpl implements NewsletterService {
 
         NewsletterSubscriber saved = subscriberRepository.save(subscriber);
         log.info("Newsletter subscription confirmed for: {}", email);
+
+        try {
+            emailService.sendNewsletterWelcomeEmail(saved.getEmail(), saved.getName());
+        } catch (Exception e) {
+            log.warn("Could not dispatch welcome email to {}: {}", saved.getEmail(), e.getMessage());
+        }
+
         return toDTO(saved);
     }
 
@@ -232,6 +242,25 @@ public class NewsletterServiceImpl implements NewsletterService {
             s.setLastCampaignSentAt(now);
         }
         subscriberRepository.saveAll(activeSubscribers);
+
+        // Asynchronously broadcast to all active subscribers via Gmail SMTP
+        CompletableFuture.runAsync(() -> {
+            log.info("Starting background broadcast of campaign {} to {} subscribers", campaignId, activeSubscribers.size());
+            for (NewsletterSubscriber sub : activeSubscribers) {
+                try {
+                    emailService.sendCampaignEmail(
+                        sub.getEmail(),
+                        sub.getName(),
+                        request.getSubject(),
+                        request.getPreheader(),
+                        request.getContentHtml()
+                    );
+                } catch (Exception e) {
+                    log.error("Failed to deliver campaign email to {}: {}", sub.getEmail(), e.getMessage());
+                }
+            }
+            log.info("Finished background broadcast for campaign {}", campaignId);
+        });
 
         log.info("Campaign {} broadcast dispatched to {} active subscribers", campaignId, recipientCount);
         return toDTO(saved);

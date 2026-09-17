@@ -19,6 +19,9 @@ public class PolicySections {
     @Column(columnDefinition = "TEXT")
     private String sectionContent;
 
+    @Column(columnDefinition = "TEXT")
+    private String bulletPoints;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "legal_policy_id")
     private LegalPolicy legalPolicy;

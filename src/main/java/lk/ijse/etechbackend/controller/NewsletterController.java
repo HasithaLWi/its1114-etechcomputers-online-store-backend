@@ -10,6 +10,7 @@ import lk.ijse.etechbackend.service.NewsletterService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -65,6 +66,16 @@ public class NewsletterController {
                 .build());
     }
 
+    
+    @GetMapping(value = "/unsubscribe", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<CommonResponse> unsubscribeGet(@RequestParam String email) {
+        log.info("REST: Unsubscribing via GET link - {}", email);
+        newsletterService.unsubscribe(email);
+        return ResponseEntity.ok(CommonResponse.builder()
+                .status(HttpStatus.OK.value())
+                .message("Unsubscribed from newsletter successfully")
+                .build());
+    }
     @PostMapping(value = "/unsubscribe", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<CommonResponse> unsubscribe(@RequestBody SubscriberDTO request) {
         log.info("REST: Unsubscribing - {}", request.getEmail());

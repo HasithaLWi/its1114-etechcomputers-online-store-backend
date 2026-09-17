@@ -49,6 +49,7 @@ public class SecurityConfig {
 
                         // Auth & System Roles endpoints
                         .requestMatchers("/api/v1/auth/**").permitAll()
+                        .requestMatchers("/api/v1/email/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/users/roles").permitAll()
 
                         // Public Storefront & Guest endpoints
@@ -63,6 +64,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/business-profile/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/newsletter/subscribe").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/newsletter/unsubscribe").permitAll()
+                          .requestMatchers(HttpMethod.GET, "/api/v1/newsletter/unsubscribe").permitAll()
                         .requestMatchers("/api/v1/chat/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/orders").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/orders/{orderCode}").permitAll()
@@ -109,3 +111,4 @@ public class SecurityConfig {
         return source;
     }
 }
+

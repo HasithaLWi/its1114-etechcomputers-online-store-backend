@@ -22,4 +22,23 @@ public interface BranchInventoryRepository extends JpaRepository<BranchInventory
     Integer calculateTotalStockForProduct(@Param("productId") Long productId);
 
     void deleteByProductId(Long productId);
+
+    @Query("SELECT COALESCE(SUM(bi.quantity), 0) FROM BranchInventory bi WHERE (:branchId IS NULL OR :branchId = 'ALL' OR bi.branch.id = :branchId)")
+    Long calculateTotalUnitsInStock(@Param("branchId") String branchId);
+
+    @Query("SELECT COUNT(DISTINCT bi.product.id) FROM BranchInventory bi WHERE bi.quantity <= bi.product.lowStockMargin AND bi.quantity > 0 AND (:branchId IS NULL OR :branchId = 'ALL' OR bi.branch.id = :branchId)")
+    Long countLowStockItems(@Param("branchId") String branchId);
+
+    @Query("SELECT COUNT(DISTINCT bi.product.id) FROM BranchInventory bi WHERE bi.quantity = 0 AND (:branchId IS NULL OR :branchId = 'ALL' OR bi.branch.id = :branchId)")
+    Long countOutOfStockItems(@Param("branchId") String branchId);
+
+    @Query("SELECT b.id, b.name, " +
+           "COALESCE(SUM(bi.quantity), 0), " +
+           "SUM(CASE WHEN bi.quantity <= p.lowStockMargin AND bi.quantity > 0 THEN 1 ELSE 0 END), " +
+           "SUM(CASE WHEN bi.quantity = 0 THEN 1 ELSE 0 END) " +
+           "FROM Branch b " +
+           "LEFT JOIN BranchInventory bi ON bi.branch.id = b.id " +
+           "LEFT JOIN bi.product p " +
+           "GROUP BY b.id, b.name")
+    List<Object[]> findBranchStockSummaries();
 }

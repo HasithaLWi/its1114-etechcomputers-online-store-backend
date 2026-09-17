@@ -45,4 +45,7 @@ public class OrderItem {
 
     @Column(name = "bundle_id")
     private Long bundleId;
+
+    @Column(name = "warranty", length = 150)
+    private String warranty;
 }
