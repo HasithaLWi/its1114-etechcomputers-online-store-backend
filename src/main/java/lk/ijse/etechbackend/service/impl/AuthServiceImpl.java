@@ -6,6 +6,7 @@ import lk.ijse.etechbackend.dto.AuthResponseDTO;
 import lk.ijse.etechbackend.dto.ForgotPasswordDTO;
 import lk.ijse.etechbackend.dto.UserDTO;
 import lk.ijse.etechbackend.entity.User;
+import lk.ijse.etechbackend.enumiration.Status;
 import lk.ijse.etechbackend.enumiration.UserRole;
 import lk.ijse.etechbackend.exception.BadRequestException;
 import lk.ijse.etechbackend.exception.ResourceNotFoundException;
@@ -67,6 +68,11 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findByUsername(request.getUsername())
                 .or(() -> userRepository.findByEmail(request.getUsername()))
                 .orElseThrow(() -> new UnauthorizedException("Invalid username or password"));
+
+        if ( user.getStatus() == null || user.getStatus() != Status.ACTIVE) {
+            log.warn("Inactive or deleted account login attempt for username: {}", request.getUsername());
+            throw new UnauthorizedException("Invalid username or password");
+        }
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             log.warn("Password mismatch for username: {}", request.getUsername());

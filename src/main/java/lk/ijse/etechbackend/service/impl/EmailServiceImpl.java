@@ -320,7 +320,7 @@ public class EmailServiceImpl implements EmailService {
         String effectiveName = getEffectiveStoreName();
         String subject = "Subscription Confirmed: Welcome to " + effectiveName + " Insider!";
         String name = (recipientName != null && !recipientName.isBlank()) ? recipientName.trim() : "Tech Enthusiast";
-        String unsubscribeUrl = "http://127.0.0.1:5500/index.html#unsubscribe?email=" + toEmail;
+        String unsubscribeUrl = "https://etechcomputers.vercel.app/#unsubscribe?email=" + toEmail;
 
         String html = """
             <!DOCTYPE html>
@@ -428,8 +428,8 @@ public class EmailServiceImpl implements EmailService {
         String effectiveEmail = getEffectiveStoreEmail();
         String effectiveName = getEffectiveStoreName();
         String name = (recipientName != null && !recipientName.isBlank()) ? recipientName.trim() : "Valued Customer";
-        String unsubscribeUrl = "http://127.0.0.1:5500/index.html#unsubscribe?email=" + toEmail;
-        String storeUrl = "http://127.0.0.1:5500/index.html#deals";
+        String unsubscribeUrl = "https://etechcomputers.vercel.app/#unsubscribe?email=" + toEmail;
+        String storeUrl = "https://etechcomputers.vercel.app/#deals";
         String safePreheader = (preheader != null && !preheader.isBlank()) ? preheader.trim() : "Special member pricing valid across all Sri Lanka branches until Sunday.";
         String safeSubject = (subject != null && !subject.isBlank()) ? subject.trim() : "ETech Computers Marketing Broadcast";
 
@@ -710,7 +710,7 @@ public class EmailServiceImpl implements EmailService {
                 shippingHtml = String.format("Rs. %,.2f", shipping);
             }
 
-            String trackingUrl = "http://127.0.0.1:5500/index.html#orders";
+            String trackingUrl = "https://etechcomputers.vercel.app/#orders";
 
             // Full Tax Invoice HTML Document
             String invoiceHtml = """
@@ -1059,7 +1059,7 @@ public class EmailServiceImpl implements EmailService {
                 shippingHtml = String.format("Rs. %,.2f", shipping);
             }
 
-            String trackingUrl = "http://127.0.0.1:5500/index.html#orders";
+            String trackingUrl = "https://etechcomputers.vercel.app/#orders";
 
             // Full Tax Invoice HTML Document for Delivered & Paid Order
             String invoiceHtml = """
