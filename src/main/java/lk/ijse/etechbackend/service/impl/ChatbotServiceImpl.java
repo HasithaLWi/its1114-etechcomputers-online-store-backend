@@ -55,7 +55,7 @@ public class ChatbotServiceImpl implements ChatbotService {
     @Value("${gemini.api.key:}")
     private String geminiApiKey;
 
-    @Value("${gemini.model:gemini-3.1-flash-lite}")
+    @Value("${gemini.model:}")
     private String geminiModel;
 
     @Value("${gemini.api.url:https://generativelanguage.googleapis.com/v1beta/models}")
