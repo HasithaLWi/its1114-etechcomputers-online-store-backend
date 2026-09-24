@@ -61,6 +61,15 @@ public class ChatbotServiceImpl implements ChatbotService {
     @Value("${gemini.api.url:https://generativelanguage.googleapis.com/v1beta/models}")
     private String geminiApiUrl;
 
+    @Value("${groq.api.key:}")
+    private String groqApiKey;
+
+    @Value("${groq.model:openai/gpt-oss-120b}")
+    private String groqModel;
+
+    @Value("${groq.api.url:https://api.groq.com/openai/v1/chat/completions}")
+    private String groqApiUrl;
+
     @Override
     public ChatStatusResponseDTO getChatbotStatus() {
         boolean isKeyPresent = geminiApiKey != null && !geminiApiKey.trim().isEmpty();
@@ -103,8 +112,8 @@ public class ChatbotServiceImpl implements ChatbotService {
         try {
             log.info("Dispatching chat request to Gemini API (Model: {}, Auth: {})",
                     geminiModel, authentication != null ? authentication.getName() : "Guest");
-            String aiReply = callGeminiApi(userMessage, request.getHistory(), request.getCart(), authentication);
-
+//            String aiReply = callGeminiApi(userMessage, request.getHistory(), request.getCart(), authentication);
+            String aiReply = callGroqApi(userMessage, request.getHistory(), request.getCart(), authentication);
             // Extract suggested product IDs from action tags
             List<Long> suggestedProductIds = new ArrayList<>();
             Matcher matcher = ACTION_PRODUCT_PATTERN.matcher(aiReply);
@@ -129,6 +138,66 @@ public class ChatbotServiceImpl implements ChatbotService {
                     .timestamp(LocalDateTime.now())
                     .build();
         }
+    }
+
+    private String callGroqApi(String currentMessage, List<ChatHistoryItemDTO> history, List<Object> cart, Authentication authentication) throws Exception {
+        Map<String, Object> requestPayload = new HashMap<>();
+        requestPayload.put("model", groqModel.trim());
+        requestPayload.put("temperature", 0.7);
+        // Groq uses max_tokens instead of maxOutputTokens
+        requestPayload.put("max_tokens", 1200);
+
+        List<Map<String, String>> messages = new ArrayList<>();
+
+        // 1. Append System Instruction
+        messages.add(Map.of(
+                "role", "system",
+                "content", buildComprehensiveSystemPrompt(cart, authentication)
+        ));
+
+        // 2. Append Chat History
+        if (history != null && !history.isEmpty()) {
+            int startIndex = Math.max(0, history.size() - 8);
+            for (int i = startIndex; i < history.size(); i++) {
+                ChatHistoryItemDTO item = history.get(i);
+                if (item.getText() == null || item.getText().trim().isEmpty()) continue;
+
+                String role = "user";
+                if (item.getSender() != null) {
+                    String senderLower = item.getSender().toLowerCase();
+                    if (senderLower.contains("bot") || senderLower.contains("assistant") || senderLower.contains("model")) {
+                        // Groq uses 'assistant' instead of Gemini's 'model'
+                        role = "assistant";
+                    }
+                }
+
+                messages.add(Map.of("role", role, "content", item.getText().trim()));
+            }
+        }
+
+        // 3. Append Current User Message
+        messages.add(Map.of("role", "user", "content", currentMessage));
+        requestPayload.put("messages", messages);
+
+        // Execute Request
+        RestClient restClient = RestClient.builder().build();
+        String responseBody = restClient.post()
+                .uri(groqApiUrl.trim())
+                .header("Authorization", "Bearer " + groqApiKey.trim())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(requestPayload)
+                .retrieve()
+                .body(String.class);
+
+        // Parse Groq (OpenAI format) Response
+        JsonNode root = objectMapper.readTree(responseBody);
+        JsonNode choices = root.path("choices");
+        if (choices.isArray() && !choices.isEmpty()) {
+            JsonNode firstChoice = choices.get(0);
+            return firstChoice.path("message").path("content").asText("");
+        }
+
+        throw new IllegalStateException("Empty or unrecognized response structure from Groq API");
     }
 
     private String callGeminiApi(String currentMessage, List<ChatHistoryItemDTO> history, List<Object> cart, Authentication authentication) throws Exception {
